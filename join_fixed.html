@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Join as Pro</title>
+<style>
+body{font-family:Arial;background:#0f172a;color:#fff;padding:20px}
+.fg{margin-bottom:15px}
+input,select{width:100%;padding:10px;border-radius:8px;border:none}
+button{padding:12px;background:#22c55e;border:none;border-radius:8px;color:#000;font-weight:bold}
+</style>
+</head>
+<body>
+
+<h2>Join as a Professional</h2>
+
+<form id="joinForm">
+
+  <div class="fg">
+    <label>Full Name</label>
+    <input type="text" name="full_name" required>
+  </div>
+
+  <div class="fg">
+    <label>Email</label>
+    <input type="email" name="email" required>
+  </div>
+
+  <div class="fg">
+    <label>Phone</label>
+    <input type="text" name="phone" required>
+  </div>
+
+  <div class="fg">
+    <label>Identification Type</label>
+    <select name="id_type" required>
+      <option value="">Select</option>
+      <option value="sa_id">South African ID</option>
+      <option value="passport">Passport</option>
+    </select>
+  </div>
+
+  <div class="fg">
+    <label>ID / Passport Number</label>
+    <input type="text" name="id_number" required>
+  </div>
+
+  <button type="submit">Submit</button>
+</form>
+
+<script>
+const form = document.getElementById('joinForm');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const data = {
+    full_name: form.full_name.value,
+    email: form.email.value,
+    phone: form.phone.value,
+    id_type: form.id_type.value,
+    id_number: form.id_number.value
+  };
+
+  const response = await fetch('https://YOUR-SUPABASE-ENDPOINT/rest/v1/profiles', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': 'YOUR-ANON-KEY',
+      'Authorization': 'Bearer YOUR-ANON-KEY'
+    },
+    body: JSON.stringify(data)
+  });
+
+  if(response.ok){
+    alert('Submitted successfully!');
+    form.reset();
+  } else {
+    alert('Error submitting form. Check Supabase columns.');
+  }
+});
+</script>
+
+</body>
+</html>
