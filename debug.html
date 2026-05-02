@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>NearbyPro — DB Debug</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+body{font-family:monospace;background:#0D1B2E;color:#fff;padding:20px;}
+h2{color:#F47A20;margin-bottom:16px;}
+.box{background:#1A2D47;border-radius:10px;padding:16px;margin-bottom:16px;}
+.ok{color:#0a7a4e;font-weight:700;}
+.err{color:#c0392b;font-weight:700;}
+.warn{color:#F47A20;font-weight:700;}
+.row{background:#243d60;border-radius:6px;padding:10px;margin-bottom:8px;font-size:13px;}
+pre{white-space:pre-wrap;word-break:break-all;font-size:12px;color:#8a9ab0;}
+.fix-btn{background:#F47A20;border:none;border-radius:8px;padding:10px 20px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px;}
+</style>
+</head>
+<body>
+<h2>&#128202; NearbyPro — Database Diagnostic</h2>
+<div class="box" id="status">&#9203; Connecting to Supabase...</div>
+<div class="box" id="all-box" style="display:none"></div>
+<div class="box" id="approved-box" style="display:none"></div>
+<div class="box" id="fix-box" style="display:none"></div>
+
+<script>
+const sb = supabase.createClient('https://gwcwrimntftpidnpcbcr.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd3Y3dyaW1udGZ0cGlkbnBjYmNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1ODE5NDMsImV4cCI6MjA5MzE1Nzk0M30.Dku7qHiYEKlsu5NgOGSLqt_dY0L-dmU7grJXoiUu49Q');
+
+async function run() {
+  const statusEl = document.getElementById('status');
+
+  try {
+    // TEST 1: Can we connect at all?
+    const { data: all, error: allErr } = await sb
+      .from('provider_applications')
+      .select('id, full_name, category, city, status, created_at')
+      .order('created_at', { ascending: false });
+
+    if (allErr) throw allErr;
+
+    statusEl.innerHTML = '<span class="ok">&#10003; Connected to Supabase successfully!</span>';
+
+    // Show all records
+    const allBox = document.getElementById('all-box');
+    allBox.style.display = 'block';
+    allBox.innerHTML = `<h2>All Applications (${all.length} total)</h2>` +
+      (all.length === 0
+        ? '<span class="warn">&#9888; No applications found at all in the database.</span>'
+        : all.map(r => `<div class="row">
+            <b>${r.full_name || 'Unknown'}</b> &mdash; 
+            Category: <span class="warn">${r.category || 'NONE'}</span> &mdash;
+            City: ${r.city || 'NONE'} &mdash;
+            Status: <span class="${r.status === 'approved' ? 'ok' : 'err'}">${r.status || 'NONE'}</span><br/>
+            <small style="color:#8a9ab0">ID: ${r.id} &bull; Applied: ${new Date(r.created_at).toLocaleString()}</small>
+          </div>`).join(''));
+
+    // TEST 2: Approved only
+    const approved = all.filter(r => r.status === 'approved');
+    const approvedBox = document.getElementById('approved-box');
+    approvedBox.style.display = 'block';
+
+    if (approved.length === 0) {
+      approvedBox.innerHTML = `<h2>Approved Providers</h2>
+        <span class="err">&#10060; No approved providers found!</span><br/><br/>
+        <b>Possible reasons:</b><br/>
+        &bull; The status was not saved as exactly "approved" (check spelling/case above)<br/>
+        &bull; The RLS policy is blocking reads<br/>
+        &bull; The update did not save correctly<br/><br/>
+        <button class="fix-btn" onclick="fixRLS()">&#128295; Auto-Fix RLS Policies</button>`;
+    } else {
+      approvedBox.innerHTML = `<h2>Approved Providers (${approved.length} found)</h2>
+        <span class="ok">&#10003; Approved providers exist in the database!</span><br/><br/>
+        ${approved.map(r => `<div class="row">
+          <b>${r.full_name}</b> &mdash; ${r.category} &mdash; ${r.city}<br/>
+          <small>Status: <span class="ok">${r.status}</span></small>
+        </div>`).join('')}
+        <br/><span class="warn">&#9888; If these are not showing on the app, the issue is in index.html loading. Try hard-refreshing the app page (Ctrl+Shift+R or Cmd+Shift+R).</span>`;
+    }
+
+  } catch(e) {
+    statusEl.innerHTML = `<span class="err">&#10060; Connection Error: ${e.message}</span>
+      <br/><br/>This means the Supabase key or URL is wrong, or RLS is blocking all reads.
+      <br/><br/><button class="fix-btn" onclick="fixRLS()">&#128295; Auto-Fix RLS Policies</button>`;
+  }
+}
+
+async function fixRLS() {
+  document.getElementById('fix-box').style.display = 'block';
+  document.getElementById('fix-box').innerHTML = '&#9203; Note: RLS policies must be fixed directly in Supabase SQL Editor. Copy and run this SQL:<br/><br/>' +
+    '<pre>' +
+    'ALTER TABLE provider_applications DISABLE ROW LEVEL SECURITY;\n\n' +
+    '-- Or if you want to keep RLS on, run:\n' +
+    'DROP POLICY IF EXISTS \"Allow public select on provider_applications\" ON provider_applications;\n' +
+    'CREATE POLICY \"allow_all_reads\" ON provider_applications FOR SELECT USING (true);\n' +
+    'CREATE POLICY \"allow_all_inserts\" ON provider_applications FOR INSERT WITH CHECK (true);\n' +
+    'CREATE POLICY \"allow_all_updates\" ON provider_applications FOR UPDATE USING (true);' +
+    '</pre>';
+}
+
+run();
+</script>
+</body></html>
